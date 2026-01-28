@@ -52,6 +52,58 @@ def main():
             }
         ]
     }
+    
+#     json_data = {
+#     "template": "/code/app/templates/template.pptx",
+#     "slides": [
+#         {
+#             "title": "Star Wars is Cool"
+#         },
+#         {
+#             "agenda": [
+#                 "Introduction",
+#                 "What makes Star Wars cool?",
+#                 "Iconic characters & ships",
+#                 "Star Wars art & fandom",
+#                 "Conclusion"
+#             ]
+#         },
+#         {
+#             "title": "Introduction - The Star Wars Universe",
+#             "pictures": [
+#                 "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=800&q=80"
+#             ]
+#         },
+#         {
+#             "sectionname": "What Makes Star Wars Cool?"
+#         },
+#         {
+#             "title": "Why Fans Love Star Wars",
+#             "content": "Star Wars combines epic storytelling, creative world-building, memorable characters, and legendary battles between good and evil. Its influence spans movies, TV, games, art, and more.",
+#             "pictures": [
+#                 "https://lumiere-a.akamaihd.net/v1/images/607598d0230e6a00018e21b2-image_354b1b56.jpeg?region=0%2C48%2C1536%2C768"
+#             ]
+#         },
+#         {
+#             "title": "Iconic Characters & Ships",
+#             "content": "Star Wars is renowned for its legendary cast: Luke Skywalker, Darth Vader, Princess Leia, Yoda, and more. The Millennium Falcon, X-Wings, and Star Destroyers are pop-culture icons.",
+#             "tables": [
+#                 {
+#                     "headers": ["Character", "Role", "First Appearance"],
+#                     "rows": [
+#                         ["Luke Skywalker", "Hero", "A New Hope"],
+#                         ["Darth Vader", "Villain", "A New Hope"],
+#                         ["Princess Leia", "Rebel Leader", "A New Hope"]
+#                     ]
+#                 }
+#             ]
+#         },
+#         {
+#             "thanks": "Thank you for celebrating Star Wars!",
+#             "contactinfo": "Test Bot\n- test@nothing.com\n- 555-123-4567"
+#         }
+#     ]
+# }
     response = requests.post(url, json=json_data)
     if response.status_code == 200:
         with open("generated_presentation.pptx", "wb") as f:

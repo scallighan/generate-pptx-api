@@ -84,12 +84,12 @@ async def generate_pptx(data: Any) -> FileResponse:
                     try:
                         picture_url = pictures_arr[images_index]
                         # regular expression to determine if it is a jpg or png
-                        file_ext = re.search(r'\.(jpg|jpeg|png|gif|bmp|tiff)$', picture_url, re.IGNORECASE)              
-                        img_path = f"/code/app/temp/image_{images_index}.{file_ext.group(1) if file_ext else 'jpg'}"
+                        file_ext = re.search(r'\.(jpg|jpeg|png|gif|bmp|tiff)', picture_url, re.IGNORECASE)              
+                        img_path = f"/code/app/temp/slide_{i}_image_{images_index}.{file_ext.group(1) if file_ext else 'jpg'}"
                         # Download image
                         print(f"Downloading image from URL: {picture_url}")
                         async with httpx.AsyncClient() as client:
-                            async with client.stream("GET", picture_url) as response:
+                            async with client.stream("GET", picture_url, follow_redirects=True) as response:
                                 response.raise_for_status()  # Raise error for HTTP failures
                                 with open(img_path, "wb") as file:
                                     async for chunk in response.aiter_bytes(1024):
@@ -97,7 +97,7 @@ async def generate_pptx(data: Any) -> FileResponse:
                             # Insert picture
                             picture = placeholder.insert_picture(img_path)
                             images_index += 1
-                            print(f"Inserted picture from {picture_url} into slide.")
+                            print(f"Inserted picture from {picture_url} [{img_path}] into slide.")
                     except Exception as e:
                         print(f"Error downloading or inserting image: {e}")
 
@@ -108,10 +108,10 @@ async def generate_pptx(data: Any) -> FileResponse:
     return FileResponse(output_path, media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation', filename='generated_presentation.pptx')
 
 
-@app.get(
-    "/generate",
-    tags=["APIs"],
-)
+# @app.get(
+#     "/generate",
+#     tags=["APIs"],
+# )
 async def generate_pptx_static(request: Request, title: Union[str, None] = Query(default="Hello World", max_length=50), content: Union[str, None] = Query(default="Something at nothing", max_length=50)): 
     data = {
         "template": '/code/app/templates/template.pptx',
@@ -168,6 +168,7 @@ async def generate_pptx_static(request: Request, title: Union[str, None] = Query
 @app.post(
     "/generate",
     tags=["APIs"],
+    description="Generate a PPTX presentation based on the provided JSON structure."
 )
 async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
     return await generate_pptx(body)
