@@ -193,4 +193,4 @@ async def generate_pptx_static(request: Request, title: Union[str, None] = Query
 )
 async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
     downloadpath = await generate_pptx(body)
-    return { "download_url": f"{request.url.scheme}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
+    return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
