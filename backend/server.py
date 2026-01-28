@@ -63,19 +63,21 @@ async def generate_pptx(data: Any) -> str:
                 placeholder.text = output
             if placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.TABLE:
                 print(f"Found table placeholder: {placeholder.name} | {placeholder.placeholder_format.type}")
-                table_data = slide_data.get("tables", [])[tables_index]
+                table_arr = slide_data.get("tables", [])
+                if len(table_arr) > 0:
+                    table_data = table_arr[tables_index]
                 
-                rows = len(table_data["rows"]) + 1 # +1 for header
-                cols = len(table_data["headers"])
-                table = placeholder.insert_table(rows, cols).table
-                # Set header
-                for col_index, header in enumerate(table_data["headers"]):
-                    table.cell(0, col_index).text = header
-                # Set rows
-                for row_index, row_data in enumerate(table_data["rows"], start=1):
-                    for col_index, cell_data in enumerate(row_data):
-                        table.cell(row_index, col_index).text = str(cell_data)
-                tables_index += 1
+                    rows = len(table_data["rows"]) + 1 # +1 for header
+                    cols = len(table_data["headers"])
+                    table = placeholder.insert_table(rows, cols).table
+                    # Set header
+                    for col_index, header in enumerate(table_data["headers"]):
+                        table.cell(0, col_index).text = header
+                    # Set rows
+                    for row_index, row_data in enumerate(table_data["rows"], start=1):
+                        for col_index, cell_data in enumerate(row_data):
+                            table.cell(row_index, col_index).text = str(cell_data)
+                    tables_index += 1
 
             # Picture placeholder needs to go last as it becomes invalid after insertion    
             elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE:
@@ -95,10 +97,11 @@ async def generate_pptx(data: Any) -> str:
                                 with open(img_path, "wb") as file:
                                     async for chunk in response.aiter_bytes(1024):
                                         file.write(chunk)
-                            # Insert picture
-                            picture = placeholder.insert_picture(img_path)
-                            images_index += 1
-                            print(f"Inserted picture from {picture_url} [{img_path}] into slide.")
+                                # Insert picture
+                                if(response.status_code == 200):
+                                    picture = placeholder.insert_picture(img_path)
+                                    images_index += 1
+                                    print(f"Inserted picture from {picture_url} [{img_path}] into slide.")
                     except Exception as e:
                         print(f"Error downloading or inserting image: {e}")
 
