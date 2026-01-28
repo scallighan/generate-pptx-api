@@ -208,3 +208,7 @@ __marimo__/
 
 generated_presentation.pptx
 **/*~$*
+
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/.terraform
