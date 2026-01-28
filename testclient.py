@@ -3,7 +3,7 @@ import requests
 def main():
     url = "http://localhost:8888/generate"
     json_data = {
-        "template": '/code/app/templates/template.pptx',
+        "template": "/code/app/templates/template.pptx",
         "slides": [
             {
                 "title": "Dynamic Slide Title"
@@ -22,7 +22,7 @@ def main():
                 ]
             },
             {
-                "sectionname": "Some Topic",
+                "sectionname": "Some Topic"
             },
             {
 
@@ -106,9 +106,10 @@ def main():
 # }
     response = requests.post(url, json=json_data)
     if response.status_code == 200:
-        with open("generated_presentation.pptx", "wb") as f:
-            f.write(response.content)
-        print("PPTX file saved as generated_presentation.pptx")
+        # with open("generated_presentation.pptx", "wb") as f:
+        #     f.write(response.content)
+        # print("PPTX file saved as generated_presentation.pptx")
+        print(response.json())
     else:
         print(f"Failed to generate PPTX. Status code: {response.status_code}, Response: {response.text}")
 

@@ -7,6 +7,7 @@ from jinja2 import Template, exceptions
 import json
 import httpx
 import re
+import time
 
 app = FastAPI(
     title="Generate PPTX API",
@@ -45,7 +46,7 @@ async def read_pptx():
             
     return {"message": "PPTX content read successfully."}
 
-async def generate_pptx(data: Any) -> FileResponse:
+async def generate_pptx(data: Any) -> str:
     template = data.get("template", "/code/app/templates/template.pptx")
     prs = Presentation(template)
 
@@ -102,10 +103,27 @@ async def generate_pptx(data: Any) -> FileResponse:
                         print(f"Error downloading or inserting image: {e}")
 
             
-
-    output_path = '/code/app/output/generated_presentation.pptx'
+    output_name = f'generated_presentation_{int(time.time())}.pptx'
+    output_path = f'/code/app/output/{output_name}'
     prs.save(output_path)
-    return FileResponse(output_path, media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation', filename='generated_presentation.pptx')
+
+    #return FileResponse(output_path, media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation', filename='generated_presentation.pptx')
+    return f"/download?file_path={output_name}" 
+
+
+@app.get(
+    "/download",
+    tags=["APIs"],
+    response_class=FileResponse,
+)
+async def download_pptx(file_path: Union[str, None] = Query(default=None, max_length=200)):
+    
+    
+    if file_path is None:
+        return {"error": "file_path query parameter is required."}
+    modified_file_path = file_path.replace("..", "") if file_path else None
+    modified_file_path = f"/code/app/output/{modified_file_path}"
+    return FileResponse(modified_file_path, media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation', filename=file_path)
 
 
 # @app.get(
@@ -171,4 +189,5 @@ async def generate_pptx_static(request: Request, title: Union[str, None] = Query
     description="Generate a PPTX presentation based on the provided JSON structure."
 )
 async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
-    return await generate_pptx(body)
+    downloadpath = await generate_pptx(body)
+    return { "download_url": f"{request.url.scheme}://{request.url.hostname}:{request.url.port}{downloadpath}" }
