@@ -195,3 +195,176 @@ async def generate_pptx_static(request: Request, title: Union[str, None] = Query
 async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
     downloadpath = await generate_pptx(body)
     return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
+
+
+############################################################
+
+class SlideContent:
+    def __init__(self, title: str = None, subtitles: list = None, text: list = None, content: list = None, pictures: list = None, tables: list = None):
+        self.title = title
+        self.subtitles = subtitles or []
+        self.text = text or []
+        self.content = content or []
+        self.pictures = pictures or []
+        self.tables = tables or []
+        title_count = 1 if title else 0
+        self.weight = title_count + (len(self.subtitles) * 2) + (len(self.text) * 5) + (len(self.content) * 10) + (len(self.pictures) * 100) + (len(self.tables) * 1000)
+
+class SlideLayoutTemplate:
+    def __init__(self, layout_name: str, title_count: int = 0, subtitles_count: int = 0, text_count: int = 0, content_count: int = 0, pictures_count: int = 0, tables_count: int = 0):
+        self.layout_name = layout_name
+        self.title_count = title_count
+        self.subtitles_count = subtitles_count
+        self.text_count = text_count
+        self.content_count = content_count
+        self.pictures_count = pictures_count
+        self.tables_count = tables_count
+        self.weight = title_count + (subtitles_count * 2) + (text_count * 5) + (content_count * 10) + (pictures_count * 100) + (tables_count * 1000)
+
+async def slide_analysis(prs: Presentation) -> dict:
+    layout_templates = {}
+    for slo in prs.slide_layouts:
+        print(f"{[slo.name]} Layout Analysis:")
+        title_count = 0
+        subtitles_count = 0
+        text_count = 0
+        content_count = 0
+        pictures_count = 0
+        tables_count = 0
+        for placeholder in slo.placeholders:
+            print(f"    Placeholder name: {placeholder.name}")
+            print(f"        type: {placeholder.placeholder_format.type},")
+            if placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.TITLE or placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.CENTER_TITLE:
+                title_count += 1
+            elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.BODY:
+                text_count += 1
+            elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.SUBTITLE:
+                subtitles_count += 1
+            elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT:
+                content_count += 1
+            elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE:
+                pictures_count += 1
+            elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.TABLE:
+                tables_count += 1
+        layout_template = SlideLayoutTemplate(
+            layout_name=slo.name,
+            title_count=title_count,
+            subtitles_count=subtitles_count,
+            text_count=text_count,
+            content_count=content_count,
+            pictures_count=pictures_count,
+            tables_count=tables_count
+        )
+        layout_templates[slo.name.lower()] = layout_template
+    return layout_templates       
+
+async def _populate_slide(slide, slide_content: SlideContent):
+    subtitles_count =0
+    text_count = 0
+    content_count = 0
+    pictures_count = 0
+    tables_count = 0
+
+    for placeholder in slide.placeholders:
+        if (placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.TITLE or placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.CENTER_TITLE) and slide_content.title:
+            placeholder.text = slide_content.title
+        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.SUBTITLE and len(slide_content.subtitles) > 0:
+            placeholder.text = slide_content.subtitles[subtitles_count]
+            subtitles_count += 1
+        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.BODY and len(slide_content.text) > 0:
+            placeholder.text = slide_content.text[text_count]
+            text_count += 1
+        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
+            placeholder.text = slide_content.content[content_count]
+            content_count += 1
+        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE and len(slide_content.pictures) > 0:
+            try:
+                picture_url = slide_content.pictures[pictures_count]
+                pictures_count += 1
+                file_ext = re.search(r'\.(jpg|jpeg|png|gif|bmp|tiff)', picture_url, re.IGNORECASE)              
+                img_path = f"/code/app/temp/temp_image.{file_ext.group(1) if file_ext else 'jpg'}"
+                # Download image
+                print(f"Downloading image from URL: {picture_url}")
+                async with httpx.AsyncClient() as client:
+                    async with client.stream("GET", picture_url, follow_redirects=True) as response:
+                        response.raise_for_status()  # Raise error for HTTP failures
+                        with open(img_path, "wb") as file:
+                            async for chunk in response.aiter_bytes(1024):
+                                file.write(chunk)
+                        # Insert picture
+                        if(response.status_code == 200):
+                            picture = placeholder.insert_picture(img_path)
+                            print(f"Inserted picture from {picture_url} [{img_path}] into slide.")
+            except Exception as e:
+                print(f"Error downloading or inserting image: {e}")
+        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.TABLE and len(slide_content.tables) > 0:
+            try:
+                table_data = slide_content.tables[tables_count]
+                tables_count += 1
+                if table_data:
+                    rows = len(table_data["rows"]) + 1 # +1 for header
+                    cols = len(table_data["headers"])
+                    table = placeholder.insert_table(rows, cols).table
+                    # Set header
+                    for col_index, header in enumerate(table_data["headers"]):
+                        table.cell(0, col_index).text = header
+                    # Set rows
+                    for row_index, row_data in enumerate(table_data["rows"], start=1):
+                        for col_index, cell_data in enumerate(row_data):
+                            table.cell(row_index, col_index).text = str(cell_data)
+                    print(f"Inserted table into slide.")
+            except Exception as e:
+                print(f"Error inserting table: {e}")
+
+async def generate_pptx_v2(data: Any) -> str:
+    template = data.get("template", "/code/app/templates/template.pptx")
+    prs = Presentation(template)
+
+    slide_layout_analysis = await slide_analysis(prs)
+    print(f"Slide Layout Analysis Results: {slide_layout_analysis}")
+    slide_data = data.get("slides", [])
+    
+    for s in slide_data:
+        print(f"Processing slide data: {s}")
+        slide_content = SlideContent(
+            title=s.get("title"),
+            subtitles=s.get("subtitles", []),
+            text=s.get("text", []),
+            content=s.get("content", []),
+            pictures=s.get("pictures", []),
+            tables=s.get("tables", [])
+        )
+        best_match = None
+        if slide_layout_analysis.get(slide_content.title.lower()):
+            print(f"Matched layout: {slide_layout_analysis[slide_content.title.lower()].layout_name} for slide content with weight {slide_content.weight}")
+            best_match = slide_layout_analysis[slide_content.title.lower()]
+        else:
+            # find the best matching weight by comparing slide_content.weight to layout_template.weight
+            
+            smallest_diff = float('inf')
+            for layout_name, layout_template in slide_layout_analysis.items():
+                weight_diff = abs(slide_content.weight - layout_template.weight)
+                if weight_diff < smallest_diff:
+                    smallest_diff = weight_diff
+                    best_match = layout_template
+        if best_match:
+            print(f"Best matched layout: {best_match.layout_name} ({best_match.weight}) for slide content with weight {slide_content.weight}")
+            current_slide = prs.slides.add_slide(prs.slide_layouts.get_by_name(best_match.layout_name))
+            await _populate_slide(current_slide, slide_content)
+        else:
+            print(f"No matching layout found for slide content with weight {slide_content.weight}")
+
+        
+    output_name = f'generated_presentation_{int(time.time())}.pptx'
+    output_path = f'/code/app/output/{output_name}'
+    prs.save(output_path)
+    return f"/download?file_path={output_name}" 
+
+@app.post(
+    "/dynamic",
+    tags=["APIs"],
+    description="New functionality testing"
+)
+async def dynamic_function(request: Request, body: dict = Body(...)):
+    downloadpath = await generate_pptx_v2(body)
+    return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }

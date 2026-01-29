@@ -1,19 +1,16 @@
 # I want to call http://localhost:8888/generate with a JSON body, and save the result as a PPTX file.
 import requests
 def main():
-    url = "http://localhost:8888/generate"
+    url = "http://localhost:8888/dynamic"
     json_data = {
-        "template": "/code/app/templates/template.pptx",
+        "template": "/code/app/templates/template2.pptx",
         "slides": [
             {
                 "title": "Dynamic Slide Title"
             },
             {
-                "agenda": [
-                    "Intros",
-                    "Some Topic",
-                    "Conclusion"
-                ]
+                "title": "Agenda",
+                "content": ["* Introduction\n* Main Topic\n* Conclusion"]
             },
             {
                 "title": "Intro - Test Client",
@@ -22,19 +19,27 @@ def main():
                 ]
             },
             {
-                "sectionname": "Some Topic"
+                "title": "Some Topic"
             },
             {
 
                 "title": "We can now generate slides!",
-                "content": "We take a template PPTX with placeholders and fill them with data using Jinja2 templating.",
+                "content": ["We take a template PPTX with placeholders and fill them with data using Jinja2 templating."],
                 "pictures": [
                    "https://cdn-dynmedia-1.microsoft.com/is/image/microsoftcorp/Content-Card-Xbox-Controllers-Black-Detail"
                 ]
             },
             {
+                "title": "Comparison to Version 2",
+                "text": ["version1", "version2"],
+                "content": [
+                    "Jinja2 templating\nstatic page count",
+                    "Dynamic slide count\nmore flexible"
+                ]
+            },
+            {
                 "title": "Conclusion",
-                "content": "This is the conclusion slide.",
+                "content": ["This is the conclusion slide."],
                 "tables": [
                     { 
                         "headers": ["Year", "Earnings", "Profit"],
@@ -47,8 +52,10 @@ def main():
                 ]
             },
             {
-                "thanks": "Thank you for your attention!",
-                "contactinfo": "Test Bot\n- test@nothing.com\n- 555-123-4567"
+                "title": "Thank you for your attention!",
+                "subtitles": [
+                    "Test Bot\n- test@nothing.com\n- 555-123-4567"
+                ]
             }
         ]
     }
