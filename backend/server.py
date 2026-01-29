@@ -187,15 +187,6 @@ async def generate_pptx_static(request: Request, title: Union[str, None] = Query
     }
     return await generate_pptx(data)
 
-@app.post(
-    "/generate",
-    tags=["APIs"],
-    description="Generate a PPTX presentation based on the provided JSON structure."
-)
-async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
-    downloadpath = await generate_pptx(body)
-    return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
-
 
 ############################################################
 
@@ -360,11 +351,22 @@ async def generate_pptx_v2(data: Any) -> str:
     prs.save(output_path)
     return f"/download?file_path={output_name}" 
 
+# @app.post(
+#     "/dynamic",
+#     tags=["APIs"],
+#     description="New functionality testing"
+# )
+# async def dynamic_function(request: Request, body: dict = Body(...)):
+#     downloadpath = await generate_pptx_v2(body)
+#     return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
+
+
 @app.post(
-    "/dynamic",
+    "/generate",
     tags=["APIs"],
-    description="New functionality testing"
+    description="Generate a PPTX presentation based on the provided JSON structure."
 )
-async def dynamic_function(request: Request, body: dict = Body(...)):
+async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
     downloadpath = await generate_pptx_v2(body)
     return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
+

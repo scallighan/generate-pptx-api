@@ -1,7 +1,7 @@
 # I want to call http://localhost:8888/generate with a JSON body, and save the result as a PPTX file.
 import requests
 def main():
-    url = "http://localhost:8888/dynamic"
+    url = "http://localhost:8888/generate"
     json_data = {
         "template": "/code/app/templates/template2.pptx",
         "slides": [
