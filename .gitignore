@@ -212,3 +212,4 @@ generated_presentation.pptx
 **/terraform.tfstate
 **/terraform.tfstate.backup
 **/.terraform
+**/.terraform.tfstate.lock.info

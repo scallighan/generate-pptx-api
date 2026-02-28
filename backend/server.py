@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Query, Header, Request, Body
+from fastapi import FastAPI, Query, Header, Request, Body, UploadFile
 from fastapi.responses import FileResponse
 from typing import Union, Any
 from pptx import Presentation
-from pptx.enum.shapes import PP_PLACEHOLDER_TYPE
+from pptx.enum.shapes import PP_PLACEHOLDER_TYPE, MSO_SHAPE_TYPE
 from jinja2 import Template, exceptions
 import json
 import httpx
@@ -41,7 +41,7 @@ async def read_pptx():
             print(f"    Placeholder name: {placeholder.name}")
             print(f"        type: {placeholder.placeholder_format.type},") 
             print(f"        has_text_frame: {placeholder.has_text_frame},")
-            print(f"        text: {placeholder.text}, ")
+            print(f"        text: {placeholder.text if hasattr(placeholder, "text") else None}, ")
             print(f"        shape_id: {placeholder.shape_id} ")
             
     return {"message": "PPTX content read successfully."}
@@ -191,12 +191,14 @@ async def generate_pptx_static(request: Request, title: Union[str, None] = Query
 ############################################################
 
 class SlideContent:
-    def __init__(self, title: str = None, subtitles: list = None, text: list = None, content: list = None, pictures: list = None, tables: list = None):
+    def __init__(self, title: str = None, subtitles: list = None, text: list = None, content: list = None, pictures: list = None, tables: list = None, extra_shapes: list = None):
         self.title = title
         self.subtitles = subtitles or []
         self.text = text or []
         self.content = content or []
         self.pictures = pictures or []
+        self.tables = tables or []
+        self.extra_shapes = extra_shapes or []
         self.tables = tables or []
         title_count = 1 if title else 0
         self.weight = title_count + (len(self.subtitles) * 2) + (len(self.text) * 5) + (len(self.content) * 10) + (len(self.pictures) * 100) + (len(self.tables) * 1000)
@@ -306,6 +308,15 @@ async def _populate_slide(slide, slide_content: SlideContent):
                     print(f"Inserted table into slide.")
             except Exception as e:
                 print(f"Error inserting table: {e}")
+    if slide_content.extra_shapes:
+        for es in slide_content.extra_shapes:
+            print(f"Extra shape to add: {es}")
+            if es['shape_type'] and es['shape_type'] == MSO_SHAPE_TYPE.TEXT_BOX:
+                shape = slide.shapes.add_textbox(es['x'], es['y'], es['width'], es['height'])
+                if es['text']:
+                    if shape.has_text_frame:
+                        shape.text = es['text']
+                        print(f"Added extra text box with text: {es['text']}")
 
 async def generate_pptx_v2(data: Any) -> str:
     template = data.get("template", "/code/app/templates/template.pptx")
@@ -323,10 +334,11 @@ async def generate_pptx_v2(data: Any) -> str:
             text=s.get("text", []),
             content=s.get("content", []),
             pictures=s.get("pictures", []),
-            tables=s.get("tables", [])
+            tables=s.get("tables", []),
+            extra_shapes=s.get("extra_shapes", [])
         )
         best_match = None
-        if slide_layout_analysis.get(slide_content.title.lower()):
+        if slide_content.title and slide_layout_analysis.get(slide_content.title.lower()):
             print(f"Matched layout: {slide_layout_analysis[slide_content.title.lower()].layout_name} for slide content with weight {slide_content.weight}")
             best_match = slide_layout_analysis[slide_content.title.lower()]
         else:
@@ -335,7 +347,7 @@ async def generate_pptx_v2(data: Any) -> str:
             smallest_diff = float('inf')
             for layout_name, layout_template in slide_layout_analysis.items():
                 weight_diff = abs(slide_content.weight - layout_template.weight)
-                if weight_diff < smallest_diff:
+                if weight_diff <= smallest_diff:
                     smallest_diff = weight_diff
                     best_match = layout_template
         if best_match:
@@ -369,4 +381,94 @@ async def generate_pptx_v2(data: Any) -> str:
 async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
     downloadpath = await generate_pptx_v2(body)
     return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
+
+@app.post(
+    "/parse",
+    tags=["APIs"],
+    description="Take an existing PPTX presentation and return its structure as JSON."
+)
+async def parse_pptx_endpoint(request: Request, file: UploadFile):
+    temp_path = f"/code/app/temp/{file.filename}"
+    with open(temp_path, "wb") as buffer:
+        buffer.write(await file.read())
+    
+    prs = Presentation(temp_path)
+    slides_data = []
+    for slide in prs.slides:
+        print(f"Processing slide id: {slide.slide_id}")
+        slide_dict = {
+        }
+        for shape in slide.shapes:
+            print(f"    Processing shape id: {shape.shape_id}")
+            print(f"      type: {shape.shape_type}")
+            if shape.is_placeholder:
+                print(f"      is placeholder: {shape.placeholder_format.type}")
+                if shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.TITLE or shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.CENTER_TITLE:
+                    slide_dict["title"] = shape.text
+                    print(f"      title: {shape.text}")
+                elif shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.SUBTITLE:
+                    if "subtitles" not in slide_dict:
+                        slide_dict["subtitles"] = []
+                    slide_dict["subtitles"].append(shape.text)
+                    print(f"      subtitle: {shape.text}")
+                elif shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.BODY:
+                    if "text" not in slide_dict:
+                        slide_dict["text"] = []
+                    slide_dict["text"].append(shape.text)
+                    print(f"      text: {shape.text}")
+                elif shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT:
+                    if "content" not in slide_dict:
+                        slide_dict["content"] = []
+                    if shape.has_text_frame:
+                        slide_dict["content"].append(shape.text)
+                        print(f"      content: {shape.text}")
+                    else:
+                        print(f"      OBJECT placeholder without text frame: {shape.name}")
+                elif shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE:
+                    if "pictures" not in slide_dict:
+                        slide_dict["pictures"] = []
+                    slide_dict["pictures"].append(f"TODO Image in placeholder {shape.name}")
+                    print(f"      TODO Image in placeholder {shape.name}")
+                elif shape.placeholder_format.type == PP_PLACEHOLDER_TYPE.TABLE:
+                    if "tables" not in slide_dict:
+                        slide_dict["tables"] = []
+                    table = shape.table
+                    headers = []
+                    rows = []
+                    for col_index in range(len(table.columns)):
+                        headers.append(table.cell(0, col_index).text)
+                    for row_index in range(1, len(table.rows)):
+                        row_data = []
+                        for col_index in range(len(table.columns)):
+                            row_data.append(table.cell(row_index, col_index).text)
+                        rows.append(row_data)
+                    slide_dict["tables"].append({
+                        "headers": headers,
+                        "rows": rows
+                    })
+            else:
+                print(f"      not a placeholder =(")
+                if "extra_shapes" not in slide_dict:
+                        slide_dict["extra_shapes"] = []
+                
+                es_dict = {
+                    "shape_id": shape.shape_id,
+                    "shape_type": shape.shape_type,
+                    "x": shape.left,
+                    "y": shape.top,
+                    "width": shape.width,
+                    "height": shape.height
+                }
+                if shape.has_text_frame:
+                    es_dict["text"] = shape.text
+                slide_dict["extra_shapes"].append(es_dict)
+                
+            if shape.has_text_frame:
+                print(f"      text: {shape.text}")
+        slides_data.append(slide_dict)
+            
+    return {
+        "template": temp_path,
+        "slides": json.dumps(slides_data)
+    }
 
