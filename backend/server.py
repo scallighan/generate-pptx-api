@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from typing import Union, Any
 from pptx import Presentation
 from pptx.enum.shapes import PP_PLACEHOLDER_TYPE, MSO_SHAPE_TYPE
+from pptx.enum.text import MSO_AUTO_SIZE
 from jinja2 import Template, exceptions
 import json
 import httpx
@@ -269,6 +270,8 @@ async def _populate_slide(slide, slide_content: SlideContent):
             text_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
             placeholder.text = slide_content.content[content_count]
+            if placeholder.has_text_frame:
+                placeholder.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
             content_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE and len(slide_content.pictures) > 0:
             try:
@@ -317,6 +320,17 @@ async def _populate_slide(slide, slide_content: SlideContent):
                     if shape.has_text_frame:
                         shape.text = es['text']
                         print(f"Added extra text box with text: {es['text']}")
+
+    if subtitles_count < len(slide_content.subtitles):
+        print(f"Warning: Not all subtitles were used for slide with title '{slide_content.title}'")
+    if text_count < len(slide_content.text):
+        print(f"Warning: Not all text items were used for slide with title '{slide_content.title}'")
+    if content_count < len(slide_content.content):
+        print(f"Warning: Not all content items were used for slide with title '{slide_content.title}'")
+    if pictures_count < len(slide_content.pictures):
+        print(f"Warning: Not all pictures were used for slide with title '{slide_content.title}'")
+    if tables_count < len(slide_content.tables):
+        print(f"Warning: Not all tables were used for slide with title '{slide_content.title}'")
 
 async def generate_pptx_v2(data: Any) -> str:
     template = data.get("template", "/code/app/templates/template.pptx")
