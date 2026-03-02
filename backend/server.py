@@ -269,9 +269,9 @@ async def _populate_slide(slide, slide_content: SlideContent):
             placeholder.text = slide_content.text[text_count]
             text_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
-            placeholder.text = slide_content.content[content_count]
             if placeholder.has_text_frame:
                 placeholder.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+            placeholder.text = slide_content.content[content_count]
             content_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE and len(slide_content.pictures) > 0:
             try:
