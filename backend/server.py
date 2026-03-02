@@ -267,11 +267,13 @@ async def _populate_slide(slide, slide_content: SlideContent):
             subtitles_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.BODY and len(slide_content.text) > 0:
             placeholder.text = slide_content.text[text_count]
+            if placeholder.has_text_frame:
+                placeholder.text_frame.fit_text()  # Auto-fit text to placeholder
             text_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
-            if placeholder.has_text_frame:
-                placeholder.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
             placeholder.text = slide_content.content[content_count]
+            if placeholder.has_text_frame:
+                placeholder.text_frame.fit_text()  # Auto-fit text to placeholder
             content_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE and len(slide_content.pictures) > 0:
             try:
@@ -320,6 +322,8 @@ async def _populate_slide(slide, slide_content: SlideContent):
                     if shape.has_text_frame:
                         shape.text = es['text']
                         print(f"Added extra text box with text: {es['text']}")
+
+    
 
     if subtitles_count < len(slide_content.subtitles):
         print(f"Warning: Not all subtitles were used for slide with title '{slide_content.title}'")
