@@ -325,6 +325,7 @@ async def generate_pptx_v2(data: Any) -> str:
     slide_layout_analysis = await slide_analysis(prs)
     print(f"Slide Layout Analysis Results: {slide_layout_analysis}")
     slide_data = data.get("slides", [])
+    print(f"Received slide data: {slide_data}")
     
     for s in slide_data:
         print(f"Processing slide data: {s}")
