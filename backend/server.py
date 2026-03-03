@@ -252,6 +252,12 @@ async def slide_analysis(prs: Presentation) -> dict:
         layout_templates[slo.name.lower()] = layout_template
     return layout_templates       
 
+
+async def _append_notes(slide, notes_text: str):
+    notes_slide = slide.notes_slide if slide.has_notes_slide else slide.notes_slide
+    text_frame = notes_slide.notes_text_frame
+    text_frame.text += notes_text
+
 async def _populate_slide(slide, slide_content: SlideContent):
     subtitles_count =0
     text_count = 0
@@ -266,14 +272,10 @@ async def _populate_slide(slide, slide_content: SlideContent):
             placeholder.text = slide_content.subtitles[subtitles_count]
             subtitles_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.BODY and len(slide_content.text) > 0:
-            placeholder.text = slide_content.text[text_count]
-            if placeholder.has_text_frame:
-                placeholder.text_frame.fit_text(font_file="/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")  # Auto-fit text to placeholder
+            placeholder.text_frame.text = slide_content.text[text_count]
             text_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
-            placeholder.text = slide_content.content[content_count]
-            if placeholder.has_text_frame:
-                placeholder.text_frame.fit_text(font_file="/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")  # Auto-fit text to placeholder
+            placeholder.text_frame.text = slide_content.content[content_count]
             content_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE and len(slide_content.pictures) > 0:
             try:
@@ -295,6 +297,7 @@ async def _populate_slide(slide, slide_content: SlideContent):
                             print(f"Inserted picture from {picture_url} [{img_path}] into slide.")
             except Exception as e:
                 print(f"Error downloading or inserting image: {e}")
+                await _append_notes(slide, f"Warning: could not download or insert image from {picture_url}\n")
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.TABLE and len(slide_content.tables) > 0:
             try:
                 table_data = slide_content.tables[tables_count]
@@ -323,18 +326,26 @@ async def _populate_slide(slide, slide_content: SlideContent):
                         shape.text = es['text']
                         print(f"Added extra text box with text: {es['text']}")
 
-    
+    for shape in slide.shapes:
+        if shape.has_text_frame and shape.text and shape.text != "":
+            shape.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+            
 
     if subtitles_count < len(slide_content.subtitles):
         print(f"Warning: Not all subtitles were used for slide with title '{slide_content.title}'")
+        await _append_notes(slide, f"Warning: Not all subtitles were used for this slide. {slide_content.subtitles}\n")
     if text_count < len(slide_content.text):
         print(f"Warning: Not all text items were used for slide with title '{slide_content.title}'")
+        await _append_notes(slide, f"Warning: Not all text items were used for this slide. {slide_content.text}\n\n")
     if content_count < len(slide_content.content):
         print(f"Warning: Not all content items were used for slide with title '{slide_content.title}'")
+        await _append_notes(slide, f"Warning: Not all content items were used for this slide. {slide_content.content}\n")
     if pictures_count < len(slide_content.pictures):
         print(f"Warning: Not all pictures were used for slide with title '{slide_content.title}'")
+        await _append_notes(slide, f"Warning: Not all pictures were used for this slide. {slide_content.pictures}\n")
     if tables_count < len(slide_content.tables):
         print(f"Warning: Not all tables were used for slide with title '{slide_content.title}'")
+        await _append_notes(slide, f"Warning: Not all tables were used for this slide. {slide_content.tables}\n")
 
 async def generate_pptx_v2(data: Any) -> str:
     template = data.get("template", "/code/app/templates/template.pptx")
