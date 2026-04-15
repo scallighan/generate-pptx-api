@@ -275,8 +275,12 @@ async def _populate_slide(slide, slide_content: SlideContent):
             placeholder.text_frame.text = slide_content.text[text_count]
             text_count += 1
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
-            placeholder.text_frame.text = slide_content.content[content_count]
-            content_count += 1
+            try:
+                placeholder.text_frame.text = slide_content.content[content_count]
+                content_count += 1
+            except Exception as e:
+                print(f"Error inserting content into OBJECT placeholder: {e}")
+                await _append_notes(slide, f"Warning: could not insert {slide_content.content} into OBJECT placeholder\n")
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.PICTURE and len(slide_content.pictures) > 0:
             try:
                 picture_url = slide_content.pictures[pictures_count]
