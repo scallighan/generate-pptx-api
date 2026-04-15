@@ -274,7 +274,7 @@ async def _populate_slide(slide, slide_content: SlideContent):
         elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.BODY and len(slide_content.text) > 0:
             placeholder.text_frame.text = slide_content.text[text_count]
             text_count += 1
-        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0:
+        elif placeholder.placeholder_format.type == PP_PLACEHOLDER_TYPE.OBJECT and len(slide_content.content) > 0 and content_count < len(slide_content.content):
             try:
                 placeholder.text_frame.text = slide_content.content[content_count]
                 content_count += 1
