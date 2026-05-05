@@ -412,7 +412,9 @@ async def generate_pptx_v2(data: Any) -> str:
     tags=["APIs"],
     description="Generate a PPTX presentation based on the provided JSON structure."
 )
-async def generate_pptx_dynamic(request: Request, body: dict = Body(...)): 
+async def generate_pptx_dynamic(request: Request, body: Union[dict, str] = Body(...)):
+    if isinstance(body, str):
+        body = json.loads(body)
     downloadpath = await generate_pptx_v2(body)
     return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
 
