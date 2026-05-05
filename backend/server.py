@@ -414,6 +414,7 @@ async def generate_pptx_v2(data: Any) -> str:
 )
 async def generate_pptx_dynamic(request: Request, body: Union[dict, str] = Body(...)):
     if isinstance(body, str):
+        print(f"Received body as string: {body}")
         body = json.loads(body)
     downloadpath = await generate_pptx_v2(body)
     return { "download_url": f"{'http' if request.url.port else 'https'}://{request.url.hostname}:{request.url.port if request.url.port else '443'}{downloadpath}" }
