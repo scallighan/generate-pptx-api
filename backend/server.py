@@ -413,9 +413,12 @@ async def generate_pptx_v2(data: Any) -> str:
     description="Generate a PPTX presentation based on the provided JSON structure."
 )
 async def generate_pptx_dynamic(request: Request, body: Any = Body(...)):
-    print(f"Received body as string: {body}")
+    print(f"Received body: ({type(body)}) {body}")
     if isinstance(body, str):
         body = json.loads(body)
+
+    if isinstance(body, list):
+        body = {"slides": body}
     elif not isinstance(body, dict):
         body = dict(body)
     downloadpath = await generate_pptx_v2(body)
