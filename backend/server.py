@@ -352,7 +352,7 @@ async def _populate_slide(slide, slide_content: SlideContent):
         await _append_notes(slide, f"Warning: Not all tables were used for this slide. {slide_content.tables}\n")
 
 async def generate_pptx_v2(data: Any) -> str:
-    template = data.get("template", "/code/app/templates/template.pptx")
+    template = data.get("template", "/code/app/templates/template2.pptx")
     prs = Presentation(template)
 
     slide_layout_analysis = await slide_analysis(prs)
