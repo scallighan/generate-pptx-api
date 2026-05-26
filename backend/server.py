@@ -416,7 +416,8 @@ async def generate_pptx_dynamic(request: Request, body: Any = Body(...)):
     print(f"Received body: ({type(body)}) {body}")
     if isinstance(body, str):
         body = json.loads(body)
-
+    if isinstance(body, bytes):
+        body = json.loads(body.decode('utf-8'))
     if isinstance(body, list):
         body = {"slides": body}
     elif not isinstance(body, dict):
